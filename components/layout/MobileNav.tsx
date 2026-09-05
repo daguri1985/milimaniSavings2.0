@@ -12,8 +12,8 @@ interface MobileNavProps {
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Members (11)', href: '/members', icon: Users },
-  { name: 'M-Pesa Payments', href: '/payments', icon: CreditCard },
+  { name: 'Members (11)', href: '/dasboard/members', icon: Users },
+  { name: 'M-Pesa Payments', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Audit & Reports', href: '/reports', icon: TrendingUp },
 ];
 
