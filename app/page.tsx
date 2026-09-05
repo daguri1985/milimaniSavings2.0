@@ -180,7 +180,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-lg font-bold text-white mb-2">Automated Matrix Ledger</h3>
                 <p className="text-sm text-slate-400 leading-relaxed">
-                  Clear visual matrix mapping all 11 members across all 22 weeks. Spot overdue payments and compliance rates instantly.
+                  Clear visual matrix mapping all 13 members across all 22 weeks. Spot overdue payments and compliance rates instantly.
                 </p>
               </div>
 
