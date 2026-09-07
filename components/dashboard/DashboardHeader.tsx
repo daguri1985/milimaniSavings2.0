@@ -7,9 +7,10 @@ import RecordPaymentModal from './RecordPaymentModal';
 
 interface DashboardHeaderProps {
   members: Member[];
+  isAdmin?: boolean;
 }
 
-export default function DashboardHeader({ members }: DashboardHeaderProps) {
+export default function DashboardHeader({ members, isAdmin = false }: DashboardHeaderProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -22,15 +23,25 @@ export default function DashboardHeader({ members }: DashboardHeaderProps) {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-emerald-600/10 active:scale-95 self-start sm:self-auto"
-        >
-          <PlusCircle className="h-4 w-4" />
-          <span>Record Payment</span>
-        </button>
+        {isAdmin && (
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl transition-all shadow-md shadow-emerald-600/10 active:scale-95"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Record Payment</span>
+            </button>
+          </div>
+        )}
       </div>
-
+{isAdmin && (
+        <RecordPaymentModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          members={members}
+        />
+      )}
       <RecordPaymentModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

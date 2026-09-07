@@ -4,16 +4,31 @@ import { useState, useEffect, useTransition, useCallback } from 'react';
 import { Search, UserPlus, Users, CheckCircle2, Shield, RefreshCw } from 'lucide-react';
 import { getMembers, MemberWithStats } from '@/app/actions/members';
 import { formatCurrency } from '@/lib/utils';
+import AddMemberModal from '@/components/dashboard/AddMemberModal';
+import { supabase } from '@/lib/supabase';
 
 export default function MembersPage() {
   const [members, setMembers] = useState<MemberWithStats[]>([]);
   const [search, setSearch] = useState('');
   const [isPending, startTransition] = useTransition();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchMembers = useCallback(() => {
     startTransition(async () => {
-      const data = await getMembers(search);
-      setMembers(data);
+      // Get current authenticated user session on client side
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const userInfo = user ? {
+        email: user.email,
+        phone: user.phone || user.user_metadata?.phone_number || user.user_metadata?.phone,
+        app_role: user.app_metadata?.role,
+        user_role: user.user_metadata?.role,
+      } : null;
+
+      const { members: memberList, isAdmin: adminStatus } = await getMembers(search, userInfo);
+      setMembers(memberList);
+      setIsAdmin(adminStatus);
     });
   }, [search]);
 
@@ -24,25 +39,30 @@ export default function MembersPage() {
   // Aggregate metrics
   const totalMembers = members.length;
   const activeMembers = members.filter((m) => m.status === 'active').length;
-  const totalGroupSavings = members.reduce((sum, m) => sum + m.total_contributions, 0);
+  const totalGroupSavings = members.reduce((sum, m) => sum + (m.total_contributions || 0), 0);
 
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-row items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Group Members</h1>
           <p className="text-xs text-slate-500">
             Manage members, roles, and track cumulative savings contributions.
           </p>
         </div>
-        <button
-          onClick={() => alert('Add Member modal feature')}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
-        >
-          <UserPlus className="h-4 w-4" />
-          Add New Member
-        </button>
+
+        {/* Add Member button right next to Group Members header */}
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer shrink-0"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add New Member
+          </button>
+        )}
       </div>
 
       {/* Summary Stat Cards */}
@@ -92,7 +112,7 @@ export default function MembersPage() {
         </div>
       </div>
 
-      {/* Members Directory Table */}
+      {/* Directory Table */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         {isPending ? (
           <div className="p-8 text-center text-slate-400 flex justify-center items-center gap-2">
@@ -142,7 +162,7 @@ export default function MembersPage() {
                       </span>
                     </td>
                     <td className="p-3 font-bold text-emerald-600">
-                      {formatCurrency(member.total_contributions)}
+                      {formatCurrency(member.total_contributions || 0)}
                     </td>
                     <td className="p-3 text-slate-500">
                       {new Date(member.created_at).toLocaleDateString('en-KE', {
@@ -158,6 +178,15 @@ export default function MembersPage() {
           </div>
         )}
       </div>
+
+      {/* Add Member Modal */}
+      {isAdmin && (
+        <AddMemberModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onMemberAdded={fetchMembers}
+        />
+      )}
     </div>
   );
 }

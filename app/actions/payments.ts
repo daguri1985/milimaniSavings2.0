@@ -1,7 +1,9 @@
 // app/actions/payments.ts
 'use server';
 
+import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { revalidatePath } from 'next/cache';
 
 export interface PaymentFilterParams {
   search?: string;
@@ -30,6 +32,72 @@ export interface TransactionRecord {
   week?: WeekRelation | WeekRelation[] | null;
 }
 
+export interface RecordPaymentPayload {
+  member_id: string;
+  week_id: number;
+  amount_paid: number;
+  mpesa_receipt_number?: string;
+  status?: 'verified' | 'pending' | 'failed';
+}
+
+/**
+ * Server Action: Record a new payment (Admin Restricted)
+ */
+export async function recordPayment(payload: RecordPaymentPayload) {
+  // 1. Authenticate & Verify Admin Role
+  const user = await getCurrentUser();
+
+  if (!user || !user.isAdmin) {
+    return {
+      success: false,
+      error: 'Unauthorized: Only administrators can record payments.',
+    };
+  }
+
+  // 2. Validate Input Payload
+  if (!payload.member_id || !payload.week_id || !payload.amount_paid) {
+    return {
+      success: false,
+      error: 'Missing required payment details (member, week, or amount).',
+    };
+  }
+
+  try {
+    // 3. Insert Contribution Record into Supabase
+    const { data, error } = await supabase
+      .from('contributions')
+      .insert([
+        {
+          member_id: payload.member_id,
+          week_id: payload.week_id,
+          amount_paid: payload.amount_paid,
+          mpesa_receipt_number: payload.mpesa_receipt_number || null,
+          status: payload.status || 'verified',
+          paid_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error inserting payment:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    // 4. Revalidate cache for real-time UI updates
+    revalidatePath('/dashboard');
+    revalidatePath('/dashboard/payments');
+
+    return { success: true, data };
+  } catch (err) {
+    console.error('Unexpected error recording payment:', err);
+    return { success: false, error: 'Internal server error while saving payment.' };
+  }
+}
+
+/**
+ * Fetch Filtered Payments List
+ */
 export async function getFilteredPayments(filters: PaymentFilterParams = {}) {
   try {
     let query = supabase

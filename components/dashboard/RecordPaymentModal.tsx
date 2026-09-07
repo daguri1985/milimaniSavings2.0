@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { X, CheckCircle2, Loader2, CreditCard } from 'lucide-react';
 import { Member } from '@/lib/types';
-import { recordContribution } from '@/app/actions/contributions';
+import { recordPayment } from '@/app/actions/payments';
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
@@ -32,11 +32,13 @@ export default function RecordPaymentModal({ isOpen, onClose, members }: RecordP
     setLoading(true);
     setErrorMsg('');
 
-    const res = await recordContribution({
+    // Call RBAC-protected server action
+    const res = await recordPayment({
       member_id: selectedMember,
       week_id: Number(selectedWeek),
       amount_paid: Number(amount),
-      mpesa_receipt_number: receipt,
+      mpesa_receipt_number: receipt.toUpperCase().trim(),
+      status: 'verified',
     });
 
     setLoading(false);
@@ -46,10 +48,12 @@ export default function RecordPaymentModal({ isOpen, onClose, members }: RecordP
       setTimeout(() => {
         setSuccess(false);
         setReceipt('');
+        setSelectedMember('');
+        setAmount('100');
         onClose();
       }, 1200);
     } else {
-      setErrorMsg(res.message || 'Failed to save payment.');
+      setErrorMsg(res.error || 'Failed to save payment.');
     }
   }
 
