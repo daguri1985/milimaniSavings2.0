@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, CreditCard, TrendingUp, X } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, TrendingUp, X, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import LogoutButton from '@/components/LogoutButton';
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -77,11 +78,29 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
 
         <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
           <p className="text-xs text-slate-400 mb-1">Aug – Dec Target</p>
-          <p className="text-lg font-bold text-emerald-400">KSh 24,200</p>
+          <p className="text-lg font-bold text-emerald-400">KSh 26,000</p>
           <div className="w-full bg-slate-700 h-2 rounded-full mt-2 overflow-hidden">
             <div className="bg-emerald-500 h-full w-[45%]" />
           </div>
         </div>
+        {/* User Profile Summary & Logout */}
+          <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="h-8 w-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-semibold text-xs border border-slate-700 shrink-0">
+                <User className="h-4 w-4" />
+              </div>
+              <div className="truncate">
+                <p className="text-xs font-bold text-white truncate">Treasurer</p>
+                <p className="text-[10px] text-slate-400 truncate">Admin Access</p>
+              </div>
+            </div>
+
+            {/* Logout Action */}
+            <LogoutButton 
+              variant="menuItem" 
+              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1.5 shrink-0" 
+            />
+          </div>
       </div>
     </div>
   );

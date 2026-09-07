@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Bell, Search, Menu, User, CheckCircle2 } from 'lucide-react';
 import MobileNav from './MobileNav';
+import LogoutButton from '@/components/LogoutButton';
 
 export default function Header() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -52,6 +53,10 @@ export default function Header() {
             <div className="hidden sm:block text-left">
               <p className="text-xs font-bold text-slate-900 leading-none">Treasurer</p>
               <p className="text-[10px] text-slate-500 mt-1">Admin Access</p>
+             
+            </div>
+            <div className="pl-1">
+              <LogoutButton />
             </div>
           </div>
         </div>
