@@ -99,7 +99,7 @@ export default function LandingPage() {
                   <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
                   <div>
                     <p className="text-xs text-slate-400">Group Size</p>
-                    <p className="text-sm font-bold text-white">11 Members</p>
+                    <p className="text-sm font-bold text-white">13 Members</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 col-span-2 sm:col-span-1">
