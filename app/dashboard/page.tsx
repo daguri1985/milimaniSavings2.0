@@ -14,6 +14,7 @@ import {
 } from '@/app/actions/dashboard';
 import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import InteractivePendingCard from '@/components/dashboard/InteractivePendingCard';
 
 export default async function DashboardPage() {
   const [user, stats, recentTransactions, members] = await Promise.all([
@@ -67,13 +68,13 @@ export default async function DashboardPage() {
           icon={Calendar}
           variant="default"
         />
- <StatCard
-  title="August Unpaid Members"
-  value={`${stats.unpaidMembersCount} ${stats.unpaidMembersCount === 1 ? 'Member' : 'Members'}`}
-  subtitle={`${formatCurrency(stats.unpaidAmount)} August Deficit`}
-  icon={AlertCircle}
-  variant="warning"
-/>    </div>
+ <InteractivePendingCard
+    unpaidMembersCount={stats.unpaidMembersCount}
+    unpaidAmount={stats.unpaidAmount}
+    unpaidMembersList={stats.unpaidMembersList}
+    targetPerMember={stats.augustTargetPerMember}
+  />
+     </div>
 
       {/* Analytics & Transaction Feed Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
