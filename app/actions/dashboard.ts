@@ -7,18 +7,20 @@ import { revalidatePath } from 'next/cache';
 
 export async function getDashboardStats() {
   try {
-    // 1. Fetch total active members count
-    const { count: totalMembersCount, error: memberErr } = await supabase
+    // 1. Fetch total active members
+    const { data: members, error: memberErr } = await supabase
       .from('members')
-      .select('*', { count: 'exact', head: true });
+      .select('id, full_name, phone_number')
+      .order('full_name', { ascending: true });
 
     if (memberErr) {
       console.error('Error fetching members:', memberErr.message);
     }
 
-    const totalMembers = totalMembersCount || 0;
+    const allMembers = members || [];
+    const totalMembers = allMembers.length;
 
-    // 2. Fetch all weeks to calculate season total and August-ended scope
+    // 2. Fetch active weeks
     const { data: weeksData } = await supabase
       .from('weeks')
       .select('id, month_name, target_amount')
@@ -27,24 +29,23 @@ export async function getDashboardStats() {
     const totalWeeks = weeksData?.length || 22;
     const weeklyTargetPerMember = weeksData?.[0]?.target_amount || 100;
 
-    // Filter weeks strictly up to August
-    // (Assumes month_name is stored like 'August', or weeks up to August are filtered)
+    // Filter August weeks specifically
     const augustWeeks = (weeksData || []).filter((w) => {
       const month = (w.month_name || '').toLowerCase();
       return month.includes('august') || month.includes('aug');
     });
 
-    // If weeks explicitly track August, use augustWeeks.length, otherwise count weeks due up to August end
-    const completedWeeksCount = augustWeeks.length > 0 ? augustWeeks.length : 4; // default to 4 weeks for August if not labeled
+    const augustWeeksCount = augustWeeks.length > 0 ? augustWeeks.length : 4;
+    const augustTargetPerMember = augustWeeksCount * weeklyTargetPerMember;
 
-    // 3. Fetch all contributions with status, amount, and week details
+    // 3. Fetch contributions
     let contributionsData: { member_id?: string; week_id?: number; amount_paid?: number; status?: string }[] = [];
 
-    const { data: contribs, error: contribErr } = await supabase
+    const { data: contribs } = await supabase
       .from('contributions')
       .select('member_id, week_id, amount_paid, status');
 
-    if (contribErr || !contribs) {
+    if (!contribs || contribs.length === 0) {
       const { data: savings } = await supabase
         .from('savings_records')
         .select('member_id, week_id, amount_paid, status');
@@ -53,7 +54,7 @@ export async function getDashboardStats() {
       contributionsData = contribs;
     }
 
-    // 4. Calculate total overall funds saved (all time)
+    // 4. Calculate total funds saved all time
     const totalSaved = contributionsData
       .filter((c) => {
         const s = (c.status || '').toUpperCase();
@@ -61,49 +62,51 @@ export async function getDashboardStats() {
       })
       .reduce((sum, c) => sum + Number(c.amount_paid || 0), 0);
 
-    // 5. Calculate August Target & August Deficit strictly
-    const augustTarget = totalMembers * completedWeeksCount * weeklyTargetPerMember;
-
-    // Sum paid contributions for August weeks only (or calculate overall deficit against August milestone)
-    const augustPaid = contributionsData
-      .filter((c) => {
-        const s = (c.status || '').toUpperCase();
-        const isPaid = s === 'PAID' || s === 'VERIFIED';
-        if (!isPaid) return false;
-        
-        // Match week ID if August weeks exist
-        if (augustWeeks.length > 0) {
-          return augustWeeks.some((aw) => aw.id === c.week_id);
-        }
-        return true;
-      })
-      .reduce((sum, c) => sum + Number(c.amount_paid || 0), 0);
-
-    // Outstanding deficit up to August end
-    const augustDeficit = Math.max(0, augustTarget - augustPaid);
-
-    // 6. Find distinct members who have pending balances for August weeks
+    // 5. Build member-by-member breakdown up through August
     const augustWeekIds = new Set(augustWeeks.map((w) => w.id));
 
-    // Get members who paid for August
-    const paidMemberIdsInAugust = new Set(
-      contributionsData
-        .filter((c) => {
-          const s = (c.status || '').toUpperCase();
-          const isPaid = s === 'PAID' || s === 'VERIFIED';
-          return isPaid && (augustWeekIds.size === 0 || augustWeekIds.has(c.week_id!));
-        })
-        .map((c) => c.member_id)
-        .filter(Boolean)
-    );
+    const memberContributionsMap = new Map<string, number>();
 
-    // Unpaid members up to August end = Total Members minus members who fully cleared August
-    const unpaidMembersCount = Math.max(0, totalMembers - paidMemberIdsInAugust.size);
+    contributionsData.forEach((c) => {
+      if (!c.member_id) return;
+      const s = (c.status || '').toUpperCase();
+      const isPaid = s === 'PAID' || s === 'VERIFIED';
 
-    // Total season target (Full 22 weeks)
+      if (isPaid && (augustWeekIds.size === 0 || (c.week_id && augustWeekIds.has(c.week_id)))) {
+        const current = memberContributionsMap.get(c.member_id) || 0;
+        memberContributionsMap.set(c.member_id, current + Number(c.amount_paid || 0));
+      }
+    });
+
+    const unpaidMembersList: Array<{
+      member_id: string;
+      full_name: string;
+      phone_number: string;
+      amount_paid: number;
+      expected_amount: number;
+      deficit: number;
+      status: 'UNPAID' | 'PARTIAL';
+    }> = [];
+
+    allMembers.forEach((m) => {
+      const paid = memberContributionsMap.get(m.id) || 0;
+      if (paid < augustTargetPerMember) {
+        const deficit = augustTargetPerMember - paid;
+        unpaidMembersList.push({
+          member_id: m.id,
+          full_name: m.full_name || 'Unknown Member',
+          phone_number: m.phone_number || '',
+          amount_paid: paid,
+          expected_amount: augustTargetPerMember,
+          deficit,
+          status: paid === 0 ? 'UNPAID' : 'PARTIAL',
+        });
+      }
+    });
+
+    const augustDeficitTotal = unpaidMembersList.reduce((sum, m) => sum + m.deficit, 0);
+
     const totalTarget = totalMembers * totalWeeks * weeklyTargetPerMember;
-
-    // Overall progress towards final season goal
     const progressPercentage =
       totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0;
 
@@ -112,8 +115,10 @@ export async function getDashboardStats() {
       totalSaved,
       totalTarget,
       totalWeeks,
-      unpaidAmount: augustDeficit,
-      unpaidMembersCount,
+      augustTargetPerMember,
+      unpaidAmount: augustDeficitTotal,
+      unpaidMembersCount: unpaidMembersList.length,
+      unpaidMembersList,
       progressPercentage,
     };
   } catch (err) {
@@ -123,8 +128,10 @@ export async function getDashboardStats() {
       totalSaved: 0,
       totalTarget: 0,
       totalWeeks: 22,
+      augustTargetPerMember: 400,
       unpaidAmount: 0,
       unpaidMembersCount: 0,
+      unpaidMembersList: [],
       progressPercentage: 0,
     };
   }
