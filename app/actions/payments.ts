@@ -1,8 +1,9 @@
 // app/actions/payments.ts
 'use server';
 
-import { getCurrentUser } from '@/lib/auth';
-import { supabase } from '@/lib/supabase';
+import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
 export interface PaymentFilterParams {
@@ -37,24 +38,60 @@ export interface RecordPaymentPayload {
   week_id: number;
   amount_paid: number;
   mpesa_receipt_number?: string;
-  status?: 'verified' | 'pending' | 'failed';
+  status?: string;
 }
+
+// Service Role Client to safely bypass RLS policies on the server
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 /**
  * Server Action: Record a new payment (Admin Restricted)
  */
 export async function recordPayment(payload: RecordPaymentPayload) {
-  // 1. Authenticate & Verify Admin Role
-  const user = await getCurrentUser();
+  // 1. Validate session via browser cookies
+  const cookieStore = await cookies();
+  const supabaseAuth = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+      },
+    }
+  );
 
-  if (!user || !user.isAdmin) {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabaseAuth.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      success: false,
+      error: 'Unauthorized: Session missing or invalid. Please log in again.',
+    };
+  }
+
+  // 2. Verify Admin Status in members table using Service Role
+  const { data: member, error: memberError } = await supabaseAdmin
+    .from('members')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (memberError || member?.role?.toLowerCase() !== 'admin') {
     return {
       success: false,
       error: 'Unauthorized: Only administrators can record payments.',
     };
   }
 
-  // 2. Validate Input Payload
+  // 3. Validate Input Payload
   if (!payload.member_id || !payload.week_id || !payload.amount_paid) {
     return {
       success: false,
@@ -62,17 +99,29 @@ export async function recordPayment(payload: RecordPaymentPayload) {
     };
   }
 
+  // 4. Map any incoming status payload to valid DB Enum values ('PAID', 'PENDING', 'OVERDUE')
+  const rawStatus = (payload.status || '').toUpperCase().trim();
+  let validStatus: 'PAID' | 'PENDING' | 'OVERDUE' = 'PAID';
+
+  if (rawStatus === 'PENDING') {
+    validStatus = 'PENDING';
+  } else if (rawStatus === 'OVERDUE') {
+    validStatus = 'OVERDUE';
+  }
+
   try {
-    // 3. Insert Contribution Record into Supabase
-    const { data, error } = await supabase
+    // 5. Insert Contribution Record into Supabase using Service Role
+    const { data, error } = await supabaseAdmin
       .from('contributions')
       .insert([
         {
           member_id: payload.member_id,
           week_id: payload.week_id,
           amount_paid: payload.amount_paid,
-          mpesa_receipt_number: payload.mpesa_receipt_number || null,
-          status: payload.status || 'verified',
+          mpesa_receipt_number: payload.mpesa_receipt_number
+            ? payload.mpesa_receipt_number.toUpperCase().trim()
+            : null,
+          status: validStatus,
           paid_at: new Date().toISOString(),
         },
       ])
@@ -84,9 +133,10 @@ export async function recordPayment(payload: RecordPaymentPayload) {
       return { success: false, error: error.message };
     }
 
-    // 4. Revalidate cache for real-time UI updates
+    // 6. Revalidate cache for real-time updates
     revalidatePath('/dashboard');
     revalidatePath('/dashboard/payments');
+    revalidatePath('/dashboard/members');
 
     return { success: true, data };
   } catch (err) {
@@ -100,7 +150,7 @@ export async function recordPayment(payload: RecordPaymentPayload) {
  */
 export async function getFilteredPayments(filters: PaymentFilterParams = {}) {
   try {
-    let query = supabase
+    let query = supabaseAdmin
       .from('contributions')
       .select(`
         id,
@@ -137,7 +187,6 @@ export async function getFilteredPayments(filters: PaymentFilterParams = {}) {
       return [];
     }
 
-    // Cast raw response to TransactionRecord array safely
     const records = (data as unknown as TransactionRecord[]) || [];
 
     // Client-side search filter

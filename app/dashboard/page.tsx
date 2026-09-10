@@ -67,14 +67,13 @@ export default async function DashboardPage() {
           icon={Calendar}
           variant="default"
         />
-        <StatCard
-          title="Pending Payments"
-          value={`${stats.pendingPayments} Unpaid`}
-          subtitle="Awaiting Verification"
-          icon={AlertCircle}
-          variant="warning"
-        />
-      </div>
+ <StatCard
+  title="August Unpaid Members"
+  value={`${stats.unpaidMembersCount} ${stats.unpaidMembersCount === 1 ? 'Member' : 'Members'}`}
+  subtitle={`${formatCurrency(stats.unpaidAmount)} August Deficit`}
+  icon={AlertCircle}
+  variant="warning"
+/>    </div>
 
       {/* Analytics & Transaction Feed Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
