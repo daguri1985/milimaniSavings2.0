@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, UserPlus, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { addMember } from '@/app/actions/members';
 
 interface AddMemberModalProps {
   isOpen: boolean;
@@ -25,20 +25,17 @@ export default function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMe
     setLoading(true);
     setError(null);
 
+    // Call the server action which uses supabaseAdmin to bypass RLS
+    const result = await addMember({
+      full_name: fullName.trim(),
+      phone_number: phoneNumber.trim(),
+      email: email.trim().toLowerCase() || null,
+      role: role,
+      status: 'active',
+    });
 
-
-    const { error: insertError } = await supabase.from('members').insert([
-      {
-        full_name: fullName.trim(),
-        phone_number: phoneNumber.trim(),
-        email: email.trim().toLowerCase(),
-        role: role,
-        status: 'active',
-      },
-    ]);
-
-    if (insertError) {
-      setError(insertError.message);
+    if (!result.success) {
+      setError(result.error || 'Failed to add member.');
       setLoading(false);
       return;
     }
@@ -69,6 +66,7 @@ export default function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMe
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
@@ -150,7 +148,7 @@ export default function AddMemberModal({ isOpen, onClose, onMemberAdded }: AddMe
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
             >
               {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               <span>Save Member</span>

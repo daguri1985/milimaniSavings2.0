@@ -1,6 +1,7 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase-server';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export interface MemberWithStats {
   id: string;
@@ -41,11 +42,24 @@ export interface UserParam {
   user_role?: string | null;
 }
 
+export interface AddMemberInput {
+  full_name: string;
+  phone_number: string;
+  role: string;
+  email?: string | null;
+  status?: 'active' | 'inactive' | 'suspended';
+}
+
+/**
+ * Server action to fetch members list and verify admin status
+ */
 export async function getMembers(
   searchTerm = '',
   currentUser?: UserParam | null
 ): Promise<GetMembersResult> {
   try {
+    const supabase = await createClient();
+
     let query = supabase
       .from('members')
       .select(`
@@ -105,37 +119,48 @@ export async function getMembers(
       };
     });
 
-    // Determine Admin Status using passed currentUser metadata or matching database record
     let isAdmin = false;
 
     if (currentUser) {
-      // Check explicit metadata roles first
-      if (
-        currentUser.app_role?.toLowerCase() === 'admin' ||
-        currentUser.user_role?.toLowerCase() === 'admin'
-      ) {
+      const appRole = (currentUser.app_role || '').trim().toLowerCase();
+      const userRole = (currentUser.user_role || '').trim().toLowerCase();
+
+      if (appRole === 'admin' || userRole === 'admin') {
         isAdmin = true;
       } else {
         const userEmail = currentUser.email?.trim().toLowerCase();
         const userPhoneDigits = (currentUser.phone || '').replace(/\D/g, '');
 
-        const matchingMember = members.find((m) => {
-          const memberEmail = m.email?.trim().toLowerCase();
-          const memberPhoneDigits = m.phone_number?.replace(/\D/g, '') || '';
+        let dbAdminMatch = false;
 
-          const emailMatch = Boolean(userEmail && memberEmail && userEmail === memberEmail);
-          const phoneMatch = Boolean(
-            userPhoneDigits.length >= 8 &&
-            memberPhoneDigits.length >= 8 &&
-            memberPhoneDigits.endsWith(userPhoneDigits.slice(-8))
-          );
+        // Check DB by email
+        if (userEmail) {
+          const { data: adminByEmail } = await supabase
+            .from('members')
+            .select('role')
+            .ilike('email', userEmail)
+            .maybeSingle();
 
-          return emailMatch || phoneMatch;
-        });
-
-        if (matchingMember?.role?.toLowerCase() === 'admin') {
-          isAdmin = true;
+          if (adminByEmail?.role?.trim().toLowerCase() === 'admin') {
+            dbAdminMatch = true;
+          }
         }
+
+        // Check DB by phone (last 9 digits)
+        if (!dbAdminMatch && userPhoneDigits.length >= 9) {
+          const last9Digits = userPhoneDigits.slice(-9);
+          const { data: adminByPhone } = await supabase
+            .from('members')
+            .select('role, phone_number')
+            .ilike('phone_number', `%${last9Digits}`)
+            .maybeSingle();
+
+          if (adminByPhone?.role?.trim().toLowerCase() === 'admin') {
+            dbAdminMatch = true;
+          }
+        }
+
+        isAdmin = dbAdminMatch;
       }
     }
 
@@ -143,5 +168,46 @@ export async function getMembers(
   } catch (err) {
     console.error('Unexpected error fetching members:', err);
     return { members: [], isAdmin: false };
+  }
+}
+
+/**
+ * Server action to add a new member using supabaseAdmin (bypasses RLS)
+ */
+export async function addMember(input: AddMemberInput) {
+  try {
+    // 1. Verify that the client calling this action has a valid authenticated session
+    const supabaseServer = await createClient();
+    const { data: { user } } = await supabaseServer.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Unauthorized. You must be logged in to add members.' };
+    }
+
+    // 2. Perform insert via supabaseAdmin to bypass RLS policies
+    const { data, error } = await supabaseAdmin
+      .from('members')
+      .insert([
+        {
+          full_name: input.full_name,
+          phone_number: input.phone_number,
+          role: input.role || 'Member',
+          email: input.email || null,
+          status: input.status || 'active',
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error inserting new member via admin client:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (err) {
+    console.error('Unexpected error in addMember:', err);
+    const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred while adding the member.';
+    return { success: false, error: errorMessage };
   }
 }
