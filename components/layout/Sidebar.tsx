@@ -9,7 +9,7 @@ const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Members', href: '/dashboard/members', icon: Users },
   { name: 'M-Pesa Payments', href: '/dashboard/payments', icon: CreditCard },
-  { name: 'Audit & Reports', href: '/reports', icon: TrendingUp },
+  { name: 'Audit & Reports', href: '/dashboard/reports', icon: TrendingUp },
 ];
 
 export default function Sidebar() {
