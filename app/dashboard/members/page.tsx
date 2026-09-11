@@ -16,19 +16,37 @@ export default function MembersPage() {
 
   const fetchMembers = useCallback(() => {
     startTransition(async () => {
-      // Get current authenticated user session on client side
+      // 1. Get client-side user and metadata directly (Same way Record Payment works)
+      const { data: { session } } = await supabase.auth.getSession();
       const { data: { user } } = await supabase.auth.getUser();
+      const currentUser = session?.user || user;
 
-      const userInfo = user ? {
-        email: user.email,
-        phone: user.phone || user.user_metadata?.phone_number || user.user_metadata?.phone,
-        app_role: user.app_metadata?.role,
-        user_role: user.user_metadata?.role,
+      // Extract metadata roles
+      const appRole = currentUser?.app_metadata?.role?.toLowerCase();
+      const userRole = currentUser?.user_metadata?.role?.toLowerCase();
+      const activeEmail = currentUser?.email?.toLowerCase() || '';
+
+      const userInfo = currentUser ? {
+        email: activeEmail,
+        phone: currentUser.phone || currentUser.user_metadata?.phone_number || null,
+        app_role: appRole,
+        user_role: userRole,
       } : null;
 
-      const { members: memberList, isAdmin: adminStatus } = await getMembers(search, userInfo);
+      // 2. Fetch members roster
+      const { members: memberList, isAdmin: serverAdminStatus } = await getMembers(search, userInfo);
+
+      // 3. Fallback check against member table records or metadata
+      const isMetadataAdmin = appRole === 'admin' || userRole === 'admin';
+      const isTableAdmin = memberList.some(
+        (m) => m.email?.trim().toLowerCase() === activeEmail && m.role?.trim().toLowerCase() === 'admin'
+      );
+
+      // Set Admin state if ANY of the checks pass
+      const finalAdminState = serverAdminStatus || isMetadataAdmin || isTableAdmin;
+
       setMembers(memberList);
-      setIsAdmin(adminStatus);
+      setIsAdmin(finalAdminState);
     });
   }, [search]);
 
@@ -36,7 +54,6 @@ export default function MembersPage() {
     fetchMembers();
   }, [fetchMembers]);
 
-  // Aggregate metrics
   const totalMembers = members.length;
   const activeMembers = members.filter((m) => m.status === 'active').length;
   const totalGroupSavings = members.reduce((sum, m) => sum + (m.total_contributions || 0), 0);
@@ -52,7 +69,7 @@ export default function MembersPage() {
           </p>
         </div>
 
-        {/* Add Member button right next to Group Members header */}
+        {/* Add Member button - Render if Admin */}
         {isAdmin && (
           <button
             type="button"
