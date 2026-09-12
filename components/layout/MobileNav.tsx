@@ -1,25 +1,66 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, CreditCard, TrendingUp, X, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LogoutButton from '@/components/LogoutButton';
+import { supabase } from '@/lib/supabase';
 
 interface MobileNavProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface UserProfile {
+  name: string;
+  role: string;
+}
+
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Members ', href: '/dashboard/members', icon: Users },
+  { name: 'Members', href: '/dashboard/members', icon: Users },
   { name: 'M-Pesa Payments', href: '/dashboard/payments', icon: CreditCard },
-  { name: 'Audit & Reports', href: '/reports', icon: TrendingUp },
+  { name: 'Audit & Reports', href: '/dashboard/reports', icon: TrendingUp },
 ];
 
 export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const pathname = usePathname();
+  const [profile, setProfile] = useState<UserProfile>({
+    name: 'User',
+    role: 'Member',
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function getUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: memberData } = await supabase
+            .from('members')
+            .select('full_name, role')
+            .eq('email', user.email)
+            .maybeSingle();
+
+          const name = memberData?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          const role = memberData?.role || user.user_metadata?.role || 'Admin Access';
+
+          setProfile({ name, role });
+        }
+      } catch (error) {
+        console.error('Error fetching mobile nav user profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (isOpen) {
+      getUserProfile();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -76,22 +117,28 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
           </nav>
         </div>
 
-        <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
-          <p className="text-xs text-slate-400 mb-1">Aug – Dec Target</p>
-          <p className="text-lg font-bold text-emerald-400">KSh 26,000</p>
-          <div className="w-full bg-slate-700 h-2 rounded-full mt-2 overflow-hidden">
-            <div className="bg-emerald-500 h-full w-[45%]" />
+        <div className="space-y-4">
+          <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+            <p className="text-xs text-slate-400 mb-1">Aug – Dec Target</p>
+            <p className="text-lg font-bold text-emerald-400">KSh 26,000</p>
+            <div className="w-full bg-slate-700 h-2 rounded-full mt-2 overflow-hidden">
+              <div className="bg-emerald-500 h-full w-[45%]" />
+            </div>
           </div>
-        </div>
-        {/* User Profile Summary & Logout */}
+
+          {/* Dynamic User Profile Summary & Logout */}
           <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="h-8 w-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-semibold text-xs border border-slate-700 shrink-0">
-                <User className="h-4 w-4" />
+              <div className="h-8 w-8 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-semibold text-xs border border-slate-700 shrink-0 uppercase">
+                {profile.name ? profile.name.charAt(0) : <User className="h-4 w-4" />}
               </div>
               <div className="truncate">
-                <p className="text-xs font-bold text-white truncate">Treasurer</p>
-                <p className="text-[10px] text-slate-400 truncate">Admin Access</p>
+                <p className="text-xs font-bold text-white truncate">
+                  {loading ? 'Loading...' : profile.name}
+                </p>
+                <p className="text-[10px] text-slate-400 truncate capitalize">
+                  {loading ? '...' : profile.role}
+                </p>
               </div>
             </div>
 
@@ -101,6 +148,7 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
               className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1.5 shrink-0" 
             />
           </div>
+        </div>
       </div>
     </div>
   );

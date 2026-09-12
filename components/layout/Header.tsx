@@ -1,12 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Search, Menu, User, CheckCircle2 } from 'lucide-react';
 import MobileNav from './MobileNav';
 import LogoutButton from '@/components/LogoutButton';
+import { supabase } from '@/lib/supabase';
+
+interface UserProfile {
+  name: string;
+  role: string;
+}
 
 export default function Header() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [profile, setProfile] = useState<UserProfile>({
+    name: 'User',
+    role: 'Member',
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function getUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user) {
+          // Fetch additional profile/role data if stored in a 'profiles' or 'members' table
+          const { data: memberData } = await supabase
+            .from('members')
+            .select('full_name, role')
+            .eq('email', user.email)
+            .maybeSingle();
+
+          const name = memberData?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          const role = memberData?.role || user.user_metadata?.role || 'Admin Access';
+
+          setProfile({ name, role });
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    getUserProfile();
+  }, []);
 
   return (
     <>
@@ -19,7 +58,7 @@ export default function Header() {
           >
             <Menu className="h-6 w-6" />
           </button>
-          
+
           <div className="relative hidden sm:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -47,13 +86,16 @@ export default function Header() {
 
           {/* User Profile */}
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-semibold text-sm ring-2 ring-slate-100">
-              <User className="h-5 w-5" />
+            <div className="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-semibold text-sm ring-2 ring-slate-100 uppercase">
+              {profile.name ? profile.name.charAt(0) : <User className="h-5 w-5" />}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-xs font-bold text-slate-900 leading-none">Treasurer</p>
-              <p className="text-[10px] text-slate-500 mt-1">Admin Access</p>
-             
+              <p className="text-xs font-bold text-slate-900 leading-none">
+                {loading ? 'Loading...' : profile.name}
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1 capitalize">
+                {loading ? '...' : profile.role}
+              </p>
             </div>
             <div className="pl-1">
               <LogoutButton />
