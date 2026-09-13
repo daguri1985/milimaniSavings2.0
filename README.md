@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Milimani Brothers — Savings & Member Management Portal
 
-## Getting Started
+A full-stack, responsive web application built for the **Milimani Brothers** savings group. The platform manages member records, tracks monthly savings contributions, processes M-Pesa transaction logs, and provides real-time financial progress toward the group's seasonal savings goals.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Key Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Dynamic Group Target Engine:** Automatically calculates total seasonal targets (August – December) based on the total active member count ($N \times \text{KSh } 400 \times 5 \text{ months}$) and updates cumulative progress dynamically from live payment records.
+- **M-Pesa Transaction Tracking:** Logs and validates M-Pesa receipt codes, amounts, and dates associated with individual members.
+- **Member Directory & Profiles:** Centralized registry for member details, status, and system roles (`admin` vs. `member`).
+- **Audit & Financial Reporting:** Clear summary views and reports for individual contributions, monthly tallies, and overall group savings.
+- **Responsive Navigation UI:** Dual-navigation architecture with a fixed desktop sidebar and a slide-out mobile drawer, both displaying dynamic target metrics.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tech Stack
 
-## Learn More
+| Layer | Technology |
+| --- | --- |
+| **Framework** | Next.js 14/15 (App Router, Client & Server Components) |
+| **Language** | TypeScript |
+| **Styling** | Tailwind CSS |
+| **Icons & UI** | Lucide React |
+| **Backend & Database** | Supabase (PostgreSQL, Row-Level Security, Auth) |
+| **State Management** | React Context (`UserContext`) |
+| **Deployment** | Vercel |
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Financial Target Formula
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The core savings target tracks contributions across the **5-month cycle** from **August through December**. Each member contributes a fixed fee of **KSh 400 per month**.
 
-## Deploy on Vercel
+$$\text{Total Group Target} = \text{Active Member Count} \times \text{KSh } 400 \times 5$$
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Calculation Matrix Example
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+$$\text{Target for 13 Members} = 13 \times 400 \times 5 = \text{KSh 26,000}$$
+
+$$\text{Target for 15 Members} = 15 \times 400 \times 5 = \text{KSh 30,000}$$
+
+The percentage fill for the UI progress bar is computed as:
+
+$$\text{Progress \%} = \min\left(\left\lfloor \frac{\text{Total Collected Payments}}{\text{Total Group Target}} \times 100 \right\rfloor, 100\right)$$
+
+---
+
+## Database Schema (Supabase / PostgreSQL)
+
+### 1. `members`
+Stores member account information and access privileges.
+
+```sql
+CREATE TABLE public.members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
+    phone_number TEXT UNIQUE NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
