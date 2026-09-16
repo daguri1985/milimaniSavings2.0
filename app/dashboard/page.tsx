@@ -11,6 +11,7 @@ import {
   getRecentTransactions,
   getDashboardStats,
   getMembersList,
+  getMonthlyProgression,
 } from '@/app/actions/dashboard';
 import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
@@ -32,11 +33,12 @@ const REQUIRED_MONTHS_TO_DATE = 2; // August + September
 const EXPECTED_AMOUNT_TO_DATE = MONTHLY_TARGET * REQUIRED_MONTHS_TO_DATE; // KSh 800
 
 export default async function DashboardPage() {
-  const [user, stats, recentTransactions, members] = await Promise.all([
+  const [user, stats, recentTransactions, members, monthlyProgression] = await Promise.all([
     getCurrentUser(),
     getDashboardStats(),
     getRecentTransactions(5),
     getMembersList(),
+    getMonthlyProgression(),
   ]);
 
   let isAdmin = false;
@@ -146,7 +148,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <SavingsChart />
+          <SavingsChart data={monthlyProgression} />
         </div>
         <div>
           <RecentActivity transactions={recentTransactions} />
