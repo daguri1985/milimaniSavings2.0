@@ -4,6 +4,7 @@
 import { supabase } from '@/lib/supabase';
 import { Member } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
+import { MonthData } from '@/components/dashboard/SavingsChart';
 
 export async function getDashboardStats() {
   try {
@@ -232,5 +233,145 @@ export async function recordPayment(formData: FormData) {
   } catch (err) {
     console.error('Unexpected error in recordPayment:', err);
     return { success: false, error: 'Internal server error recording payment.' };
+  }
+}
+
+interface ContributionProgressionRow {
+  amount_paid: number | string | null;
+  status: string | null;
+  paid_at: string | null;
+  created_at: string | null;
+  week: {
+    month_name: string | null;
+  } | null;
+  weeks?: { month_name?: string | null } | { month_name?: string | null }[] | null;
+}
+
+export async function getMonthlyProgression(): Promise<MonthData[]> {
+  try {
+    const monthTargets: Record<string, number> = {
+      August: 5200,
+      September: 5200,
+      October: 5200,
+      November: 5200,
+      December: 7800,
+    };
+
+    // 1. Query contributions table
+    const { data: initialContribs, error } = await supabase
+      .from('contributions')
+      .select(`
+        amount_paid,
+        status,
+        paid_at,
+        created_at,
+        weeks!week_id (
+          month_name
+        )
+      `);
+
+    let contributions = initialContribs;
+
+    // Fallback: Check savings_records if contributions table is empty or errored
+    if (error || !contributions || contributions.length === 0) {
+      const { data: savings } = await supabase
+        .from('savings_records')
+        .select(`
+          amount_paid,
+          status,
+          paid_at,
+          created_at,
+          weeks!week_id (
+            month_name
+          )
+        `);
+      contributions = savings || [];
+    }
+
+    const monthlyTotals: Record<string, number> = {
+      August: 0,
+      September: 0,
+      October: 0,
+      November: 0,
+      December: 0,
+    };
+
+    if (contributions && contributions.length > 0) {
+      const typedContributions = contributions as unknown as ContributionProgressionRow[];
+
+      typedContributions.forEach((item) => {
+        const status = (item.status || 'PAID').toUpperCase();
+        if (status !== 'PAID' && status !== 'VERIFIED') return;
+
+        let monthName: string | null = null;
+
+        // Extract month_name whether Supabase returns an object or an array
+        const weekObj = item.weeks || item.week;
+        let rawMonth: string | null = null;
+
+        if (Array.isArray(weekObj) && weekObj.length > 0) {
+          rawMonth = weekObj[0]?.month_name || null;
+        } else if (weekObj && 'month_name' in weekObj) {
+          rawMonth = weekObj.month_name || null;
+        }
+
+        // 1. Try matching month from Joined weeks relation
+        if (rawMonth) {
+          const cleanMonth = rawMonth.trim().toLowerCase();
+          for (const key of Object.keys(monthlyTotals)) {
+            if (cleanMonth.includes(key.toLowerCase())) {
+              monthName = key;
+              break;
+            }
+          }
+        }
+
+        // 2. Fallback: Parse paid_at or created_at timestamp
+        if (!monthName && (item.paid_at || item.created_at)) {
+          const dateStr = item.paid_at || item.created_at;
+          if (dateStr) {
+            const date = new Date(dateStr);
+            if (!isNaN(date.getTime())) {
+              const parsedMonth = date.toLocaleString('en-US', { month: 'long' });
+              if (monthlyTotals[parsedMonth] !== undefined) {
+                monthName = parsedMonth;
+              }
+            }
+          }
+        }
+
+        if (monthName && monthlyTotals[monthName] !== undefined) {
+          monthlyTotals[monthName] += Number(item.amount_paid) || 0;
+        }
+      });
+    }
+
+    return Object.keys(monthTargets).map((month) => {
+      const target = monthTargets[month];
+      const collected = monthlyTotals[month] || 0;
+
+      let status: 'Completed' | 'In Progress' | 'Pending' = 'Pending';
+      if (collected >= target) {
+        status = 'Completed';
+      } else if (collected > 0) {
+        status = 'In Progress';
+      }
+
+      return {
+        month,
+        target,
+        collected,
+        status,
+      };
+    });
+  } catch (err) {
+    console.error('Unexpected error fetching monthly progression:', err);
+    return [
+      { month: 'August', target: 5200, collected: 0, status: 'Pending' },
+      { month: 'September', target: 5200, collected: 0, status: 'Pending' },
+      { month: 'October', target: 5200, collected: 0, status: 'Pending' },
+      { month: 'November', target: 5200, collected: 0, status: 'Pending' },
+      { month: 'December', target: 7800, collected: 0, status: 'Pending' },
+    ];
   }
 }
