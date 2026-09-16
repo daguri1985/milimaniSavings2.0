@@ -1,6 +1,7 @@
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import InstallPWA from '@/components/InstallPWA';
+import { UserProvider } from '@/context/UserContext';
 
 export default function DashboardLayout({
   children,
@@ -8,6 +9,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
+    <UserProvider>
     <div className="flex min-h-screen bg-slate-50">
       {/* Desktop Sidebar */}
       <Sidebar />
@@ -21,5 +23,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </UserProvider>
   );
 }
