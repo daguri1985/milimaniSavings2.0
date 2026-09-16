@@ -251,10 +251,10 @@ export async function getMonthlyProgression(): Promise<MonthData[]> {
   try {
     const monthTargets: Record<string, number> = {
       August: 5200,
-      September: 5200,
-      October: 5200,
-      November: 5200,
-      December: 7800,
+      September: 6000,
+      October: 6000,
+      November: 6000,
+      December: 6000,
     };
 
     // 1. Query contributions table
