@@ -37,14 +37,19 @@ export default function Sidebar() {
           setMemberCount(count);
         }
 
-        // 2. Fetch total accumulated savings from payments
-        const { data: paymentsData, error: paymentsError } = await supabase
-          .from('payments')
-          .select('amount');
+        // 2. Fetch total accumulated savings from contributions
+        const { data: contributionsData, error: contributionsError } = await supabase
+          .from('contributions')
+          .select('amount_paid');
 
-        if (!paymentsError && paymentsData) {
-          const sum = paymentsData.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+        if (!contributionsError && contributionsData) {
+          const sum = contributionsData.reduce(
+            (acc, curr) => acc + (Number(curr.amount_paid) || 0),
+            0
+          );
           setTotalCollected(sum);
+        } else if (contributionsError) {
+          console.error('Error fetching contributions:', contributionsError);
         }
       } catch (err) {
         console.error('Error fetching sidebar savings targets:', err);

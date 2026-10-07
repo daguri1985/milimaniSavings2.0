@@ -45,43 +45,52 @@ export default async function MemberDetailPage({ params }: MemberPageProps) {
     0
   );
 
-  // 3. August to December Target Breakdown Calculation
-  const MONTHLY_TARGET = 400; // Adjust monthly target amount as needed
+  // 3. August to December Target Breakdown Calculation (Mapped to week_id)
+  const MONTHLY_TARGET = 400;
   const targetMonths = [
-    { name: 'August', monthIndex: 7, year: 2026 },
-    { name: 'September', monthIndex: 8, year: 2026 },
-    { name: 'October', monthIndex: 9, year: 2026 },
-    { name: 'November', monthIndex: 10, year: 2026 },
-    { name: 'December', monthIndex: 11, year: 2026 },
+    { name: 'August', monthIndex: 7, weeks: [1, 2, 3, 4], target: MONTHLY_TARGET },
+    { name: 'September', monthIndex: 8, weeks: [5, 6, 7, 8], target: MONTHLY_TARGET },
+    { name: 'October', monthIndex: 9, weeks: [9, 10, 11, 12], target: MONTHLY_TARGET },
+    { name: 'November', monthIndex: 10, weeks: [13, 14, 15, 16], target: MONTHLY_TARGET },
+    { name: 'December', monthIndex: 11, weeks: [17, 18, 19, 20, 21, 22], target: MONTHLY_TARGET },
   ];
 
   const periodBreakdown = targetMonths.map((m) => {
-    // Sum contributions matching this month and year
     const paidInMonth = contributions
       .filter((tx) => {
-        const date = new Date(tx.created_at);
-        return (
-          date.getMonth() === m.monthIndex && date.getFullYear() === m.year
-        );
+        const weekVal = Number(tx.week_id);
+
+        // 1. Primary check: Match using week_id from Supabase
+        if (weekVal && weekVal > 0) {
+          return m.weeks.includes(weekVal);
+        }
+
+        // 2. Fallback: Match by created_at month index if week_id is missing or null
+        if (tx.created_at) {
+          const txDate = new Date(tx.created_at);
+          return txDate.getMonth() === m.monthIndex;
+        }
+
+        return false;
       })
       .reduce((sum, tx) => sum + Number(tx.amount_paid || 0), 0);
 
-    const deficit = Math.max(0, MONTHLY_TARGET - paidInMonth);
+    const deficit = Math.max(0, m.target - paidInMonth);
     const progressPercent = Math.min(
       100,
-      Math.round((paidInMonth / MONTHLY_TARGET) * 100)
+      Math.round((paidInMonth / m.target) * 100)
     );
 
     return {
       name: m.name,
-      target: MONTHLY_TARGET,
+      target: m.target,
       paid: paidInMonth,
       deficit,
       progressPercent,
     };
   });
 
-  const periodTotalTarget = MONTHLY_TARGET * targetMonths.length;
+  const periodTotalTarget = targetMonths.reduce((sum, m) => sum + m.target, 0); // KSh 2,000
   const periodTotalPaid = periodBreakdown.reduce((sum, m) => sum + m.paid, 0);
   const periodTotalDeficit = Math.max(0, periodTotalTarget - periodTotalPaid);
   const periodOverallProgress = Math.min(
@@ -203,8 +212,7 @@ export default async function MemberDetailPage({ params }: MemberPageProps) {
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Target className="h-4 w-4 text-blue-600" /> August – December Target
-            Breakdown
+            <Target className="h-4 w-4 text-blue-600" /> August – December Target Breakdown
           </h2>
           <span className="text-xs text-slate-500">
             Target: KSh {MONTHLY_TARGET.toLocaleString()} / Month
@@ -284,6 +292,7 @@ export default async function MemberDetailPage({ params }: MemberPageProps) {
                 <div>
                   <p className="text-xs font-semibold text-slate-900">
                     {tx.mpesa_code ? `M-Pesa: ${tx.mpesa_code}` : 'Direct Contribution'}
+                    {tx.week_id && ` (Week ${tx.week_id})`}
                   </p>
                   <p className="text-[11px] text-slate-500">
                     {new Date(tx.created_at).toLocaleDateString('en-KE', {
