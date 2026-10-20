@@ -16,7 +16,7 @@ export default function MembersPage() {
 
   const fetchMembers = useCallback(() => {
     startTransition(async () => {
-      // 1. Get client-side user and metadata directly (Same way Record Payment works)
+      // 1. Get client-side user and metadata directly
       const { data: { session } } = await supabase.auth.getSession();
       const { data: { user } } = await supabase.auth.getUser();
       const currentUser = session?.user || user;
@@ -129,45 +129,32 @@ export default function MembersPage() {
         </div>
       </div>
 
-      {/* Directory Table */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      {/* Directory Section: Cards on Mobile (<640px) / Table on Desktop (≥640px) */}
+      <div>
         {isPending ? (
-          <div className="p-8 text-center text-slate-400 flex justify-center items-center gap-2">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center text-slate-400 flex justify-center items-center gap-2">
             <RefreshCw className="h-4 w-4 animate-spin text-emerald-600" />
             <span className="text-xs font-medium">Loading members...</span>
           </div>
         ) : members.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-xs">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center text-slate-500 text-xs">
             No members match your search criteria.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="p-3">Member Name</th>
-                  <th className="p-3">Phone Number</th>
-                  <th className="p-3">Role</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Total Saved</th>
-                  <th className="p-3">Joined Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {members.map((member) => (
-                  <tr key={member.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3 font-semibold text-slate-900">
-                      {member.full_name}
-                    </td>
-                    <td className="p-3 font-mono text-slate-600">
-                      {member.phone_number}
-                    </td>
-                    <td className="p-3">
+          <>
+            {/* Mobile View: Cards (<640px) */}
+            <div className="block sm:hidden space-y-3">
+              {members.map((member) => (
+                <div key={member.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">{member.full_name}</h3>
+                      <p className="text-xs font-mono text-slate-500 mt-0.5">{member.phone_number}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 capitalize">
                         {member.role}
                       </span>
-                    </td>
-                    <td className="p-3">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
                           member.status === 'active'
@@ -177,22 +164,87 @@ export default function MembersPage() {
                       >
                         {member.status}
                       </span>
-                    </td>
-                    <td className="p-3 font-bold text-emerald-600">
-                      {formatCurrency(member.total_contributions || 0)}
-                    </td>
-                    <td className="p-3 text-slate-500">
-                      {new Date(member.created_at).toLocaleDateString('en-KE', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-slate-400 text-[11px] block">Total Saved</span>
+                      <span className="font-bold text-emerald-600 text-sm">
+                        {formatCurrency(member.total_contributions || 0)}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-slate-400 text-[11px] block">Joined Date</span>
+                      <span className="text-slate-600">
+                        {new Date(member.created_at).toLocaleDateString('en-KE', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop View: Table (≥640px) */}
+            <div className="hidden sm:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                      <th className="p-3">Member Name</th>
+                      <th className="p-3">Phone Number</th>
+                      <th className="p-3">Role</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Total Saved</th>
+                      <th className="p-3">Joined Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {members.map((member) => (
+                      <tr key={member.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-3 font-semibold text-slate-900">
+                          {member.full_name}
+                        </td>
+                        <td className="p-3 font-mono text-slate-600">
+                          {member.phone_number}
+                        </td>
+                        <td className="p-3">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 capitalize">
+                            {member.role}
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
+                              member.status === 'active'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {member.status}
+                          </span>
+                        </td>
+                        <td className="p-3 font-bold text-emerald-600">
+                          {formatCurrency(member.total_contributions || 0)}
+                        </td>
+                        <td className="p-3 text-slate-500">
+                          {new Date(member.created_at).toLocaleDateString('en-KE', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

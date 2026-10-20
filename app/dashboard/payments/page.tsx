@@ -51,7 +51,7 @@ export default function PaymentsPage() {
         <button
           onClick={() => exportTransactionsToCSV(payments)}
           disabled={payments.length === 0}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
         >
           <Download className="h-4 w-4" />
           Export CSV ({payments.length})
@@ -99,81 +99,149 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* Payments Table */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      {/* Payments Section */}
+      <div>
         {isPending ? (
-          <div className="p-8 text-center text-slate-400 flex justify-center items-center gap-2">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center text-slate-400 flex justify-center items-center gap-2">
             <RefreshCw className="h-4 w-4 animate-spin text-emerald-600" />
             <span className="text-xs font-medium">Filtering payments...</span>
           </div>
         ) : payments.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-xs">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center text-slate-500 text-xs">
             No transaction records match the selected filters.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
-                  <th className="p-3">Member</th>
-                  <th className="p-3">M-Pesa Code</th>
-                  <th className="p-3">Week</th>
-                  <th className="p-3">Amount</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {payments.map((tx) => {
-                  const member = getMemberDetails(tx);
-                  const weekText = getWeekId(tx);
+          <>
+            {/* Mobile View: Cards (<640px) */}
+            <div className="block sm:hidden space-y-3">
+              {payments.map((tx) => {
+                const member = getMemberDetails(tx);
+                const weekText = getWeekId(tx);
+                const isPendingStatus = tx.status?.toLowerCase() === 'pending';
 
-                  return (
-                    <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3 font-medium text-slate-900">
-                        <div>{member.fullName}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {member.phoneNumber}
-                        </div>
-                      </td>
-                      <td className="p-3 font-mono font-semibold text-slate-700">
-                        {tx.mpesa_receipt_number || '—'}
-                      </td>
-                      <td className="p-3 text-slate-600">
-                        {weekText}
-                      </td>
-                      <td className="p-3 font-bold text-slate-900">
-                        +{formatCurrency(Number(tx.amount_paid))}
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
-                            tx.status?.toLowerCase() === 'pending'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-emerald-100 text-emerald-700'
-                          }`}
-                        >
-                          {tx.status?.toLowerCase() === 'pending' ? (
-                            <Clock className="h-3 w-3" />
-                          ) : (
-                            <CheckCircle className="h-3 w-3" />
-                          )}
-                          {tx.status}
+                return (
+                  <div key={tx.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">{member.fullName}</h3>
+                        <p className="text-xs font-mono text-slate-500 mt-0.5">{member.phoneNumber}</p>
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
+                          isPendingStatus
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}
+                      >
+                        {isPendingStatus ? <Clock className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
+                        {tx.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                      <div>
+                        <span className="text-slate-400 text-[11px] block">M-Pesa Code</span>
+                        <span className="font-mono font-semibold text-slate-700">
+                          {tx.mpesa_receipt_number || '—'}
                         </span>
-                      </td>
-                      <td className="p-3 text-slate-500">
-                        {new Date(tx.paid_at || tx.created_at).toLocaleDateString('en-KE', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </td>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-400 text-[11px] block">Week Target</span>
+                        <span className="font-medium text-slate-600">{weekText}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-slate-400 text-[11px] block">Amount Paid</span>
+                        <span className="font-bold text-slate-900 text-sm">
+                          +{formatCurrency(Number(tx.amount_paid))}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-400 text-[11px] block">Date Recorded</span>
+                        <span className="text-slate-600">
+                          {new Date(tx.paid_at || tx.created_at).toLocaleDateString('en-KE', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop View: Table (≥640px) */}
+            <div className="hidden sm:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                      <th className="p-3">Member</th>
+                      <th className="p-3">M-Pesa Code</th>
+                      <th className="p-3">Week</th>
+                      <th className="p-3">Amount</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Date</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {payments.map((tx) => {
+                      const member = getMemberDetails(tx);
+                      const weekText = getWeekId(tx);
+                      const isPendingStatus = tx.status?.toLowerCase() === 'pending';
+
+                      return (
+                        <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3 font-medium text-slate-900">
+                            <div>{member.fullName}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              {member.phoneNumber}
+                            </div>
+                          </td>
+                          <td className="p-3 font-mono font-semibold text-slate-700">
+                            {tx.mpesa_receipt_number || '—'}
+                          </td>
+                          <td className="p-3 text-slate-600">
+                            {weekText}
+                          </td>
+                          <td className="p-3 font-bold text-slate-900">
+                            +{formatCurrency(Number(tx.amount_paid))}
+                          </td>
+                          <td className="p-3">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
+                                isPendingStatus
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : 'bg-emerald-100 text-emerald-700'
+                              }`}
+                            >
+                              {isPendingStatus ? (
+                                <Clock className="h-3 w-3" />
+                              ) : (
+                                <CheckCircle className="h-3 w-3" />
+                              )}
+                              {tx.status}
+                            </span>
+                          </td>
+                          <td className="p-3 text-slate-500">
+                            {new Date(tx.paid_at || tx.created_at).toLocaleDateString('en-KE', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

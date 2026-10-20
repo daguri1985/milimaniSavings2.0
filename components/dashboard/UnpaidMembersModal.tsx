@@ -50,7 +50,7 @@ export default function UnpaidMembersModal({
           <div>
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-amber-500" />
-              August Unpaid & Partial Members
+              Total Unpaid & Partial Members
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Target per member: <span className="font-semibold">{formatCurrency(targetPerMember)}</span> | Total Deficit:{' '}
