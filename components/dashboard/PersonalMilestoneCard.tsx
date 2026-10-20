@@ -33,7 +33,7 @@ export default function PersonalMilestoneCard({
   const remainingBalance = Math.max(0, seasonTarget - userTotalSaved);
   const isGoalReached = userTotalSaved >= seasonTarget;
 
-  const paybillNumber = '0720851981'; // Update with your actual Paybill / Till Number
+  const paybillNumber = '0720851981'; // Paybill / Till Number
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -199,16 +199,15 @@ export default function PersonalMilestoneCard({
         </div>
       )}
 
-      {/* Manual Code Record Payment Modal */}
+      {/* Manual Code Record Payment Modal (Cleaned up: no unhandled onSuccess prop) */}
       {isPaymentModalOpen && (
         <RecordPaymentModal
           isOpen={isPaymentModalOpen}
-          onClose={() => setIsPaymentModalOpen(false)}
-          members={members}
-          onSuccess={() => {
+          onClose={() => {
             setIsPaymentModalOpen(false);
             if (onPaymentRecorded) onPaymentRecorded();
           }}
+          members={members}
         />
       )}
     </>
