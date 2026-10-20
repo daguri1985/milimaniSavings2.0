@@ -1,29 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { Target, CreditCard, Sparkles, CheckCircle2, Copy, Check, X, ShieldCheck } from 'lucide-react';
+import { Target, CreditCard, Sparkles, CheckCircle2, Copy, Check, X, ShieldCheck, PhoneCall } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import RecordPaymentModal from '@/components/dashboard/RecordPaymentModal';
-import { Member } from '@/lib/types';
 
 interface PersonalMilestoneCardProps {
   userTotalSaved: number;
   seasonTarget?: number; // Defaults to KES 2,000
   memberName?: string;
-  members?: Member[]; // Uses the centralized Member type from @/lib/types
-  onPaymentRecorded?: () => void;
 }
 
 export default function PersonalMilestoneCard({
   userTotalSaved,
   seasonTarget = 2000,
   memberName = 'Member',
-  members = [],
-  onPaymentRecorded,
 }: PersonalMilestoneCardProps) {
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isQuickPayOpen, setIsQuickPayOpen] = useState(false);
-  const [copiedPaybill, setCopiedPaybill] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
 
   const progressPercentage = Math.min(
     100,
@@ -33,12 +26,13 @@ export default function PersonalMilestoneCard({
   const remainingBalance = Math.max(0, seasonTarget - userTotalSaved);
   const isGoalReached = userTotalSaved >= seasonTarget;
 
-  const paybillNumber = '0720851981'; // Paybill / Till Number
+  const treasurerName = 'Edgar Treasurer';
+  const treasurerPhoneNumber = '0720851981';
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedPaybill(true);
-    setTimeout(() => setCopiedPaybill(false), 2000);
+    setCopiedPhone(true);
+    setTimeout(() => setCopiedPhone(false), 2000);
   };
 
   return (
@@ -123,10 +117,12 @@ export default function PersonalMilestoneCard({
         )}
       </div>
 
-      {/* User-Focused Quick M-Pesa Instructions Modal */}
+      {/* Member Payment Instructions Modal */}
       {isQuickPayOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-200 p-5 space-y-4">
+            
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 rounded-lg">
@@ -134,10 +130,10 @@ export default function PersonalMilestoneCard({
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    M-Pesa Contribution
+                    Send M-Pesa Contribution
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Target Deficit: <span className="font-bold text-emerald-600">{formatCurrency(remainingBalance)}</span>
+                    Remaining Deficit: <span className="font-bold text-emerald-600">{formatCurrency(remainingBalance)}</span>
                   </p>
                 </div>
               </div>
@@ -149,66 +145,63 @@ export default function PersonalMilestoneCard({
               </button>
             </div>
 
-            {/* M-Pesa Details */}
-            <div className="space-y-2 bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
+            {/* M-Pesa Send Money Box */}
+            <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Business / Paybill:</span>
-                <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 dark:text-white">
-                  <span>{paybillNumber}</span>
+                <span className="text-slate-500 flex items-center gap-1.5">
+                  <PhoneCall className="h-3.5 w-3.5 text-emerald-600" />
+                  Send Money To:
+                </span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {treasurerName}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                <span className="text-slate-500">M-Pesa Number:</span>
+                <div className="flex items-center gap-1.5 font-mono font-bold text-slate-900 dark:text-white text-sm">
+                  <span>{treasurerPhoneNumber}</span>
                   <button
-                    onClick={() => copyToClipboard(paybillNumber)}
-                    className="p-1 text-slate-400 hover:text-emerald-600 transition-colors"
-                    title="Copy Paybill"
+                    type="button"
+                    onClick={() => copyToClipboard(treasurerPhoneNumber)}
+                    className="p-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md text-slate-600 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+                    title="Copy Phone Number"
                   >
-                    {copiedPaybill ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    {copiedPhone ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Account Name:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">
-                  {memberName.toUpperCase()}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                <span className="text-slate-500">Account Reference:</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-white uppercase">
+                  {memberName}
                 </span>
               </div>
             </div>
 
-            {/* Modal Actions */}
-            <div className="space-y-2 pt-2">
-              {members.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsQuickPayOpen(false);
-                    setIsPaymentModalOpen(true);
-                  }}
-                  className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                >
-                  Enter M-Pesa Code Manually
-                </button>
-              )}
+            {/* Helper Notice */}
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center px-1">
+              Send via M-Pesa Send Money. Automated M-Pesa STK Push will be enabled shortly!
+            </p>
+
+            {/* Close Button */}
+            <div className="pt-1">
               <button
                 type="button"
                 onClick={() => setIsQuickPayOpen(false)}
-                className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+                className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
               >
-                Done
+                I Have Sent the Money
               </button>
             </div>
+
           </div>
         </div>
-      )}
-
-      {/* Manual Code Record Payment Modal (Cleaned up: no unhandled onSuccess prop) */}
-      {isPaymentModalOpen && (
-        <RecordPaymentModal
-          isOpen={isPaymentModalOpen}
-          onClose={() => {
-            setIsPaymentModalOpen(false);
-            if (onPaymentRecorded) onPaymentRecorded();
-          }}
-          members={members}
-        />
       )}
     </>
   );

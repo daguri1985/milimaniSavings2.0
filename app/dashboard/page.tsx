@@ -30,6 +30,7 @@ interface ContributionRecord {
 }
 
 const MONTHLY_TARGET = 400; // KSh 400 per month
+const SEASON_MONTHS = 5; // August to December (5 months)
 const REQUIRED_MONTHS_TO_DATE = 2; // August + September
 const EXPECTED_AMOUNT_TO_DATE = MONTHLY_TARGET * REQUIRED_MONTHS_TO_DATE; // KSh 800
 
@@ -89,6 +90,13 @@ export default async function DashboardPage() {
   const userDeficit = Math.max(0, EXPECTED_AMOUNT_TO_DATE - userTotalSaved);
   const isUpToDate = userTotalSaved >= EXPECTED_AMOUNT_TO_DATE;
 
+  // Correct dynamic group target calculation: Active Members × 400 KES × 5 Months
+  const activeMemberCount = stats.totalMembers || (members ? members.length : 0);
+  const dynamicTotalTarget = activeMemberCount * MONTHLY_TARGET * SEASON_MONTHS;
+  const dynamicProgressPercentage = dynamicTotalTarget > 0
+    ? Math.min(100, Math.round((stats.totalSaved / dynamicTotalTarget) * 100))
+    : 0;
+
   return (
     <div className="space-y-6">
       <DashboardHeader 
@@ -103,8 +111,8 @@ export default async function DashboardPage() {
           value={formatCurrency(userTotalSaved)}
           subtitle={
             userDeficit > 0
-              ? `Deficit: ${formatCurrency(userDeficit)} (Aug–Sep)`
-              : 'Up to date for Aug & Sep 🎉'
+              ? `Deficit: ${formatCurrency(userDeficit)} (Aug–Dec)`
+              : 'Up to date for Aug to Dec 🎉'
           }
           icon={UserCheck}
           variant={isUpToDate ? 'success' : 'warning'}
@@ -115,16 +123,16 @@ export default async function DashboardPage() {
         <StatCard
           title="Total Funds Saved"
           value={formatCurrency(stats.totalSaved)}
-          subtitle={`Target: ${formatCurrency(stats.totalTarget)}`}
+          subtitle={`Target: ${formatCurrency(dynamicTotalTarget)}`}
           icon={Wallet}
           variant="info"
-          trend={`${stats.progressPercentage}% Goal`}
+          trend={`${dynamicProgressPercentage}% Goal`}
         />
 
         {/* 3. Active Members: Soft Purple (Community Theme) */}
         <StatCard
           title="Active Members"
-          value={`${stats.totalMembers} Members`}
+          value={`${activeMemberCount} Members`}
           subtitle="100% Onboarded"
           icon={Users}
           variant="purple"
