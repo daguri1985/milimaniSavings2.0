@@ -45,14 +45,19 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
           setMemberCount(count);
         }
 
-        // 2. Fetch total accumulated savings from payments
-        const { data: paymentsData, error: paymentsError } = await supabase
-          .from('payments')
-          .select('amount');
+        // 2. Fetch total accumulated savings from contributions (matching desktop)
+        const { data: contributionsData, error: contributionsError } = await supabase
+          .from('contributions')
+          .select('amount_paid');
 
-        if (!paymentsError && paymentsData) {
-          const sum = paymentsData.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+        if (!contributionsError && contributionsData) {
+          const sum = contributionsData.reduce(
+            (acc, curr) => acc + (Number(curr.amount_paid) || 0),
+            0
+          );
           setTotalCollected(sum);
+        } else if (contributionsError) {
+          console.error('Error fetching contributions:', contributionsError);
         }
       } catch (err) {
         console.error('Error fetching mobile nav savings targets:', err);
@@ -102,7 +107,7 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
             </div>
             <button 
               onClick={onClose} 
-              className="p-1 text-slate-400 hover:text-white rounded-lg"
+              className="p-1 text-slate-400 hover:text-white rounded-lg cursor-pointer"
               aria-label="Close Mobile Menu"
             >
               <X className="h-6 w-6" />

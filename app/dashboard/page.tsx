@@ -15,7 +15,8 @@ import {
 } from '@/app/actions/dashboard';
 import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
-import InteractivePendingCard from '@/components/dashboard/InteractivePendingCard';
+
+import PersonalMilestoneCard from '@/components/dashboard/PersonalMilestoneCard';
 
 interface MemberRecord {
   id: string;
@@ -47,7 +48,6 @@ export default async function DashboardPage() {
   const userEmail = user?.email?.trim().toLowerCase();
 
   if (userEmail) {
-    // 1. Fetch member matching user email (case-insensitive)
     const { data: dbMember } = await supabase
       .from('members')
       .select('id, role, email')
@@ -56,7 +56,6 @@ export default async function DashboardPage() {
 
     let currentMember: MemberRecord | null = dbMember;
 
-    // Fallback: Check in pre-fetched members list
     if (!currentMember && members && members.length > 0) {
       const found = (members as MemberRecord[]).find(
         (m) => m.email?.trim().toLowerCase() === userEmail
@@ -69,7 +68,6 @@ export default async function DashboardPage() {
     if (currentMember) {
       isAdmin = currentMember.role === 'admin';
 
-      // 2. Query 'amount_paid' from the 'contributions' table
       const { data: userContributions, error: contributionErr } = await supabase
         .from('contributions')
         .select('amount_paid')
@@ -88,7 +86,6 @@ export default async function DashboardPage() {
     }
   }
 
-  // Deficit based on KSh 800 requirement (Aug + Sep)
   const userDeficit = Math.max(0, EXPECTED_AMOUNT_TO_DATE - userTotalSaved);
   const isUpToDate = userTotalSaved >= EXPECTED_AMOUNT_TO_DATE;
 
@@ -100,6 +97,7 @@ export default async function DashboardPage() {
       />
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* 1. My Savings: Dynamic Green (Success) or Orange (Warning) */}
         <StatCard
           title="My Savings"
           value={formatCurrency(userTotalSaved)}
@@ -113,23 +111,26 @@ export default async function DashboardPage() {
           trend={isUpToDate ? 'On Track' : `Behind by ${formatCurrency(userDeficit)}`}
         />
 
+        {/* 2. Total Funds Saved: Soft Blue / Indigo (Info Theme) */}
         <StatCard
           title="Total Funds Saved"
           value={formatCurrency(stats.totalSaved)}
           subtitle={`Target: ${formatCurrency(stats.totalTarget)}`}
           icon={Wallet}
-          variant="success"
+          variant="info"
           trend={`${stats.progressPercentage}% Goal`}
         />
 
+        {/* 3. Active Members: Soft Purple (Community Theme) */}
         <StatCard
           title="Active Members"
           value={`${stats.totalMembers} Members`}
           subtitle="100% Onboarded"
           icon={Users}
-          variant="default"
+          variant="purple"
         />
 
+        {/* 4. Season Duration: Clean Neutral Slate */}
         <StatCard
           title="Season Duration"
           value="22 Weeks"
@@ -138,11 +139,11 @@ export default async function DashboardPage() {
           variant="default"
         />
 
-        <InteractivePendingCard
-          unpaidMembersCount={stats.unpaidMembersCount}
-          unpaidAmount={stats.unpaidAmount}
-          unpaidMembersList={stats.unpaidMembersList}
-          targetPerMember={stats.augustTargetPerMember}
+        {/* 5. Personal Milestone Goal Card */}
+        <PersonalMilestoneCard
+          userTotalSaved={userTotalSaved}
+          seasonTarget={2000}
+          members={members}
         />
       </div>
 
