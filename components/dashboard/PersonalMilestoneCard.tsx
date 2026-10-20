@@ -3,17 +3,20 @@
 import { useState } from 'react';
 import { Target, CreditCard, Sparkles, CheckCircle2, Copy, Check, X, ShieldCheck, PhoneCall } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { Member } from '@/lib/types';
 
 interface PersonalMilestoneCardProps {
   userTotalSaved: number;
   seasonTarget?: number; // Defaults to KES 2,000
   memberName?: string;
+  members?: Member[]; // Added to satisfy props passed from app/dashboard/page.tsx
 }
 
 export default function PersonalMilestoneCard({
   userTotalSaved,
   seasonTarget = 2000,
   memberName = 'Member',
+  members = [],
 }: PersonalMilestoneCardProps) {
   const [isQuickPayOpen, setIsQuickPayOpen] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
