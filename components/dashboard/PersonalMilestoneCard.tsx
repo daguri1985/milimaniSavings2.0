@@ -4,18 +4,13 @@ import { useState } from 'react';
 import { Target, CreditCard, Sparkles, CheckCircle2, Copy, Check, X, ShieldCheck } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import RecordPaymentModal from '@/components/dashboard/RecordPaymentModal';
-
-interface Member {
-  id: string;
-  full_name: string;
-  phone_number?: string;
-}
+import { Member } from '@/lib/types';
 
 interface PersonalMilestoneCardProps {
   userTotalSaved: number;
   seasonTarget?: number; // Defaults to KES 2,000
   memberName?: string;
-  members?: Member[]; // Optional members list passed down if using RecordPaymentModal
+  members?: Member[]; // Uses the centralized Member type from @/lib/types
   onPaymentRecorded?: () => void;
 }
 
@@ -204,7 +199,7 @@ export default function PersonalMilestoneCard({
         </div>
       )}
 
-      {/* Manual Code Record Payment Modal (fallback if admin or manual entry requested) */}
+      {/* Manual Code Record Payment Modal */}
       {isPaymentModalOpen && (
         <RecordPaymentModal
           isOpen={isPaymentModalOpen}
